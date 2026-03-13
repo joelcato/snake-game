@@ -42,10 +42,6 @@ let food = {
     y: 0
 };
 
-// Touch tracking for swipe detection
-let touchStartX = 0;
-let touchStartY = 0;
-
 // Initialize game when page loads
 document.addEventListener('DOMContentLoaded', function() {
     canvas = document.getElementById('gameCanvas');
@@ -54,9 +50,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set up event listeners
     document.addEventListener('keydown', handleKeyPress);
     
-    // Set up touch event listeners for mobile swipe support
+    // Set up touch event listener for mobile tap control
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
     
     // Initialize game
     initGame();
@@ -267,44 +262,41 @@ function handleKeyPress(event) {
 function handleTouchStart(event) {
     event.preventDefault();
     const touch = event.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-}
-
-function handleTouchEnd(event) {
-    event.preventDefault();
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - touchStartX;
-    const deltaY = touch.clientY - touchStartY;
-    const minSwipeDistance = 20;
-    const isTap = Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance;
 
     if (gameState === GAME_STATES.PLAYING) {
-        if (!isTap) {
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                // Horizontal swipe
-                if (deltaX > 0 && snake.direction.x !== -1) {
-                    snake.nextDirection = { x: 1, y: 0 };
-                } else if (deltaX < 0 && snake.direction.x !== 1) {
-                    snake.nextDirection = { x: -1, y: 0 };
-                }
-            } else {
-                // Vertical swipe
-                if (deltaY > 0 && snake.direction.y !== -1) {
-                    snake.nextDirection = { x: 0, y: 1 };
-                } else if (deltaY < 0 && snake.direction.y !== 1) {
-                    snake.nextDirection = { x: 0, y: -1 };
-                }
+        // Convert touch position to grid coordinates, accounting for canvas scaling
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = CONFIG.CANVAS_WIDTH / rect.width;
+        const scaleY = CONFIG.CANVAS_HEIGHT / rect.height;
+        const gridCols = CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE;
+        const gridRows = CONFIG.CANVAS_HEIGHT / CONFIG.GRID_SIZE;
+        const tapGridX = Math.min(gridCols - 1, Math.max(0, Math.floor((touch.clientX - rect.left) * scaleX / CONFIG.GRID_SIZE)));
+        const tapGridY = Math.min(gridRows - 1, Math.max(0, Math.floor((touch.clientY - rect.top) * scaleY / CONFIG.GRID_SIZE)));
+
+        const head = snake.body[0];
+        const diffX = tapGridX - head.x;
+        const diffY = tapGridY - head.y;
+
+        // Determine direction based on which axis the tap is farther from the head
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+            // East or West
+            if (diffX > 0 && snake.direction.x !== -1) {
+                snake.nextDirection = { x: 1, y: 0 };
+            } else if (diffX < 0 && snake.direction.x !== 1) {
+                snake.nextDirection = { x: -1, y: 0 };
+            }
+        } else {
+            // North or South
+            if (diffY > 0 && snake.direction.y !== -1) {
+                snake.nextDirection = { x: 0, y: 1 };
+            } else if (diffY < 0 && snake.direction.y !== 1) {
+                snake.nextDirection = { x: 0, y: -1 };
             }
         }
     } else if (gameState === GAME_STATES.PAUSED) {
-        if (isTap) {
-            resumeGame();
-        }
+        resumeGame();
     } else if (gameState === GAME_STATES.GAME_OVER) {
-        if (isTap) {
-            restartGame();
-        }
+        restartGame();
     }
 }
 
