@@ -114,3 +114,7 @@ venv.bak/
 # Windows
 Thumbs.db
 ehthumbs.db
+
+# Ignore build/deploy output
+public/
+dist/

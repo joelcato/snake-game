@@ -22,7 +22,16 @@ class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 def main():
     # Change to the directory containing this script
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    # Prefer serving from 'dist' (Vite output) if it exists, otherwise fall back to 'public', then root
+    dist_dir = os.path.join(root_dir, 'dist')
+    public_dir = os.path.join(root_dir, 'public')
+    if os.path.isdir(dist_dir):
+        os.chdir(dist_dir)
+    elif os.path.isdir(public_dir):
+        os.chdir(public_dir)
+    else:
+        os.chdir(root_dir)
     
     Handler = MyHTTPRequestHandler
     
