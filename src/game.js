@@ -37,8 +37,7 @@ let boostTimer = null;
 // Snake object
 let snake = {
     body: [],
-    direction: { x: 1, y: 0 },
-    nextDirection: { x: 1, y: 0 }
+    direction: { x: 1, y: 0 }
 };
 
 // Food object
@@ -112,7 +111,6 @@ function initGame() {
     }
     
     snake.direction = { x: 1, y: 0 };
-    snake.nextDirection = { x: 1, y: 0 };
     
     // Generate first food
     generateFood();
@@ -179,10 +177,7 @@ function setBoost() {
 }
 
 function updateGame() {
-    // Update snake direction
-    snake.direction = { ...snake.nextDirection };
-    
-    // Move snake
+    // Move snake in current direction (no queuing)
     const head = { ...snake.body[0] };
     head.x += snake.direction.x;
     head.y += snake.direction.y;
@@ -294,43 +289,39 @@ function isSnakePosition(x, y) {
 }
 
 function handleKeyPress(event) {
-    // Prevent default behavior for arrow keys
+    // Prevent default behavior for arrow keys and space
     if ([37, 38, 39, 40, 32].includes(event.keyCode)) {
         event.preventDefault();
     }
     
     if (gameState === GAME_STATES.PLAYING) {
         let desired = null;
-        switch (event.key.toLowerCase()) {
-            case 'arrowup':
-            case 'w':
-                desired = { x: 0, y: -1 };
-                break;
-            case 'arrowdown':
-            case 's':
-                desired = { x: 0, y: 1 };
-                break;
-            case 'arrowleft':
-            case 'a':
-                desired = { x: -1, y: 0 };
-                break;
-            case 'arrowright':
-            case 'd':
-                desired = { x: 1, y: 0 };
-                break;
-            case ' ':
-                pauseGame();
-                break;
+        const key = event.key.toLowerCase();
+        
+        // Check for arrow keys (event.key) and WASD keys
+        if (event.key === 'ArrowUp' || key === 'w') {
+            desired = { x: 0, y: -1 };
+        } else if (event.key === 'ArrowDown' || key === 's') {
+            desired = { x: 0, y: 1 };
+        } else if (event.key === 'ArrowLeft' || key === 'a') {
+            desired = { x: -1, y: 0 };
+        } else if (event.key === 'ArrowRight' || key === 'd') {
+            desired = { x: 1, y: 0 };
+        } else if (key === ' ') {
+            pauseGame();
+            return;
         }
 
         if (desired) {
-            // Prevent reversing
+            // Only change direction if not reversing into itself
             if (!(desired.x === -snake.direction.x && desired.y === -snake.direction.y)) {
-                // If the desired direction is the same as the current direction, trigger a boost
+                // Apply direction immediately (no queue)
                 if (desired.x === snake.direction.x && desired.y === snake.direction.y) {
+                    // Same direction: trigger boost
                     setBoost();
                 } else {
-                    snake.nextDirection = desired;
+                    // Different valid direction: change immediately
+                    snake.direction = desired;
                 }
             }
         }
@@ -345,9 +336,9 @@ function handleKeyPress(event) {
     }
 }
 
-// Handle touch/click events on screen. Divides viewport into quadrants.
-// Tap/click anywhere in upper half = up, lower half = down, left half = left, right half = right.
-// Uses screen-wide zones (not limited to canvas) for easier access and rapid direction changes.
+// Handle touch/click events on screen. Divides viewport into directional zones.
+// Uses angle-based detection to determine direction intent.
+// Only accepts a direction if it's sufficiently clear (angle dead zone of ~45 degrees).
 function handleTouch(event) {
     // Prevent scrolling on touch
     event.preventDefault();
@@ -367,26 +358,37 @@ function handleTouch(event) {
     const touchX = touch.clientX;
     const touchY = touch.clientY;
 
-    // Determine direction based on which half/quadrant of the screen was touched
-    // Vertical: top half = up, bottom half = down
-    // Horizontal: left half = left, right half = right
-    // The largest delta determines the primary direction
+    // Screen center
     const screenCenterX = window.innerWidth / 2;
     const screenCenterY = window.innerHeight / 2;
 
     const dx = touchX - screenCenterX;
     const dy = touchY - screenCenterY;
 
-    // Decide direction by largest absolute delta (more forgiving than head-relative)
+    // Calculate angle and magnitude
+    const magnitude = Math.sqrt(dx * dx + dy * dy);
+    if (magnitude < 10) return; // Ignore very small touches (accidental taps)
+
+    // Normalize to angles: 0=right, 90=down, 180/-180=left, -90=up
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    // Determine direction based on angle with 45-degree dead zones between directions
+    // Prefer the clearer direction (one of the four cardinal directions)
     let desired = { x: 0, y: 0 };
-    if (Math.abs(dx) > Math.abs(dy)) {
-        // Horizontal zone
-        desired.x = dx > 0 ? 1 : -1;
+    
+    // 45-degree dead zones: -45 to 45 = right, 45 to 135 = down, etc.
+    if (angle >= -45 && angle < 45) {
+        desired.x = 1;
         desired.y = 0;
-    } else {
-        // Vertical zone
+    } else if (angle >= 45 && angle < 135) {
         desired.x = 0;
-        desired.y = dy > 0 ? 1 : -1;
+        desired.y = 1;
+    } else if (angle >= 135 || angle < -135) {
+        desired.x = -1;
+        desired.y = 0;
+    } else { // -135 to -45
+        desired.x = 0;
+        desired.y = -1;
     }
 
     // Prevent reversing into itself
@@ -395,7 +397,8 @@ function handleTouch(event) {
         if (desired.x === snake.direction.x && desired.y === snake.direction.y) {
             setBoost();
         } else {
-            snake.nextDirection = desired;
+            // Apply direction immediately (no queue)
+            snake.direction = desired;
         }
     }
 }
