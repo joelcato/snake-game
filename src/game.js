@@ -54,14 +54,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up event listeners
     document.addEventListener('keydown', handleKeyPress);
-    // Touch / mobile support: tap to change direction relative to snake head
-    canvas.addEventListener('touchstart', handleTouch, { passive: false });
-    // Support mouse clicks as touch for desktop (click relative to head)
-    canvas.addEventListener('mousedown', (e) => {
-        // Create a synthetic touch-like object
+    // Touch / mobile support: respond to taps anywhere on screen
+    document.addEventListener('touchstart', handleTouch, { passive: false });
+    // Desktop click support: respond to clicks anywhere on screen
+    document.addEventListener('mousedown', (e) => {
+        // Create a synthetic touch-like object from mouse event
         handleTouch({
             preventDefault: () => e.preventDefault(),
-            touches: [{ clientX: e.clientX, clientY: e.clientY }]
+            touches: null,
+            clientX: e.clientX,
+            clientY: e.clientY
         });
     });
     
@@ -319,9 +321,9 @@ function handleKeyPress(event) {
     }
 }
 
-// Handle touch events on the canvas. A tap relative to the snake head
-// will change direction: tapping north/south/east/west of the head
-// sets the corresponding direction (prevents reversing into itself).
+// Handle touch/click events on screen. Divides viewport into quadrants.
+// Tap/click anywhere in upper half = up, lower half = down, left half = left, right half = right.
+// Uses screen-wide zones (not limited to canvas) for easier access and rapid direction changes.
 function handleTouch(event) {
     // Prevent scrolling on touch
     event.preventDefault();
@@ -334,38 +336,36 @@ function handleTouch(event) {
         return;
     }
 
-    const touch = event.touches[0];
+    const touch = event.touches ? event.touches[0] : event;
     if (!touch) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    // Use viewport coordinates (full screen), not canvas-relative
+    const touchX = touch.clientX;
+    const touchY = touch.clientY;
 
-    // Convert touch coordinates to canvas pixel coordinates
-    const touchX = (touch.clientX - rect.left) * scaleX;
-    const touchY = (touch.clientY - rect.top) * scaleY;
+    // Determine direction based on which half/quadrant of the screen was touched
+    // Vertical: top half = up, bottom half = down
+    // Horizontal: left half = left, right half = right
+    // The largest delta determines the primary direction
+    const screenCenterX = window.innerWidth / 2;
+    const screenCenterY = window.innerHeight / 2;
 
-    // Snake head center in pixels
-    const head = snake.body[0];
-    const headCenterX = head.x * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2;
-    const headCenterY = head.y * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2;
+    const dx = touchX - screenCenterX;
+    const dy = touchY - screenCenterY;
 
-    const dx = touchX - headCenterX;
-    const dy = touchY - headCenterY;
-
-    // Decide direction by largest absolute delta
+    // Decide direction by largest absolute delta (more forgiving than head-relative)
     let desired = { x: 0, y: 0 };
     if (Math.abs(dx) > Math.abs(dy)) {
-        // Horizontal tap
+        // Horizontal zone
         desired.x = dx > 0 ? 1 : -1;
         desired.y = 0;
     } else {
-        // Vertical tap
+        // Vertical zone
         desired.x = 0;
         desired.y = dy > 0 ? 1 : -1;
     }
 
-    // Prevent reversing: only accept if desired is not exactly opposite of current direction
+    // Prevent reversing into itself
     if (!(desired.x === -snake.direction.x && desired.y === -snake.direction.y)) {
         // If the desired direction is the same as the current direction, trigger a boost
         if (desired.x === snake.direction.x && desired.y === snake.direction.y) {
