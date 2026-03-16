@@ -49,6 +49,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up event listeners
     document.addEventListener('keydown', handleKeyPress);
+    // Touch / mobile support: tap to change direction relative to snake head
+    canvas.addEventListener('touchstart', handleTouch, { passive: false });
     
     // Initialize game
     initGame();
@@ -253,6 +255,58 @@ function handleKeyPress(event) {
         if (event.key.toLowerCase() === 'r') {
             restartGame();
         }
+    }
+}
+
+// Handle touch events on the canvas. A tap relative to the snake head
+// will change direction: tapping north/south/east/west of the head
+// sets the corresponding direction (prevents reversing into itself).
+function handleTouch(event) {
+    // Prevent scrolling on touch
+    event.preventDefault();
+
+    if (gameState !== GAME_STATES.PLAYING) {
+        // If paused, tapping could resume
+        if (gameState === GAME_STATES.PAUSED) {
+            resumeGame();
+        }
+        return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    // Convert touch coordinates to canvas pixel coordinates
+    const touchX = (touch.clientX - rect.left) * scaleX;
+    const touchY = (touch.clientY - rect.top) * scaleY;
+
+    // Snake head center in pixels
+    const head = snake.body[0];
+    const headCenterX = head.x * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2;
+    const headCenterY = head.y * CONFIG.GRID_SIZE + CONFIG.GRID_SIZE / 2;
+
+    const dx = touchX - headCenterX;
+    const dy = touchY - headCenterY;
+
+    // Decide direction by largest absolute delta
+    let desired = { x: 0, y: 0 };
+    if (Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal tap
+        desired.x = dx > 0 ? 1 : -1;
+        desired.y = 0;
+    } else {
+        // Vertical tap
+        desired.x = 0;
+        desired.y = dy > 0 ? 1 : -1;
+    }
+
+    // Prevent reversing: only accept if desired is not exactly opposite of current direction
+    if (!(desired.x === -snake.direction.x && desired.y === -snake.direction.y)) {
+        snake.nextDirection = desired;
     }
 }
 
