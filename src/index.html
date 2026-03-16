@@ -39,6 +39,8 @@
             touch-action: none; /* disable default touch gestures on canvas */
             -webkit-tap-highlight-color: rgba(0,0,0,0); /* disable tap highlight on iOS */
             display: block;
+            width: 800px;
+            height: 600px;
             max-width: 100%;
             height: auto;
         }
@@ -122,7 +124,7 @@
     <div class="game-container">
         <h1>🐍 Snake Game</h1>
         <div class="score">Score: <span id="score">0</span></div>
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <canvas id="gameCanvas"></canvas>
         <div class="controls">
             <strong>Controls:</strong><br>
             Arrow Keys or WASD to move • Space to pause • R to restart

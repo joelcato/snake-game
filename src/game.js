@@ -53,12 +53,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle responsive canvas for mobile
     function resizeCanvas() {
-        const rect = canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
         
-        // Set canvas resolution to match display size * device pixel ratio for crisp rendering
-        canvas.width = Math.round(rect.width * dpr);
-        canvas.height = Math.round(rect.height * dpr);
+        // Calculate dimensions maintaining aspect ratio
+        let displayWidth = rect.width || CONFIG.CANVAS_WIDTH;
+        let displayHeight = displayWidth * (CONFIG.CANVAS_HEIGHT / CONFIG.CANVAS_WIDTH);
+        
+        // Set canvas internal resolution for crisp rendering
+        canvas.width = Math.round(displayWidth * dpr);
+        canvas.height = Math.round(displayHeight * dpr);
+        
+        // Set display size (CSS pixels)
+        canvas.style.width = displayWidth + 'px';
+        canvas.style.height = displayHeight + 'px';
         
         // Scale context to match device pixel ratio
         ctx.scale(dpr, dpr);
