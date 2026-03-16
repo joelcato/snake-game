@@ -367,7 +367,12 @@ function handleTouch(event) {
 
     // Prevent reversing: only accept if desired is not exactly opposite of current direction
     if (!(desired.x === -snake.direction.x && desired.y === -snake.direction.y)) {
-        snake.nextDirection = desired;
+        // If the desired direction is the same as the current direction, trigger a boost
+        if (desired.x === snake.direction.x && desired.y === snake.direction.y) {
+            setBoost();
+        } else {
+            snake.nextDirection = desired;
+        }
     }
 }
 
